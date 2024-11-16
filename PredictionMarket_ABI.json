@@ -1,0 +1,167 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_question",
+                "type": "string"
+            },
+            {
+                "internalType": "string[2]",
+                "name": "_options",
+                "type": "string[2]"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_duration",
+                "type": "uint256"
+            }
+        ],
+        "name": "createBet",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_betId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint8",
+                "name": "_optionIndex",
+                "type": "uint8"
+            }
+        ],
+        "name": "placeBet",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_betId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint8",
+                "name": "_winningOption",
+                "type": "uint8"
+            }
+        ],
+        "name": "resolveBet",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_agent",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "inputs": [],
+        "name": "agent",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "betCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "bets",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "question",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "totalPool",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "endTime",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "resolved",
+                "type": "bool"
+            },
+            {
+                "internalType": "uint8",
+                "name": "winningOption",
+                "type": "uint8"
+            },
+            {
+                "internalType": "address",
+                "name": "creator",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_betId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getOdds",
+        "outputs": [
+            {
+                "internalType": "uint256[2]",
+                "name": "",
+                "type": "uint256[2]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

@@ -10,7 +10,8 @@ import {
   CloudRain,
   AlertTriangle,
 } from "lucide-react";
-import { useGlobalContext } from './store/globalContext';
+import { useGlobalContext } from "./store/globalContext";
+import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
 
 // Placeholder UI components, replace these with your actual UI components
 const Card = ({ children, className = "" }) => (
@@ -209,21 +210,22 @@ interface ChatMessage {
 // First, add this helper function to parse conversation text
 const parseConversationText = (text: string) => {
   // Split by newlines and filter empty lines
-  return text.split('\n')
-    .map(line => line.trim())
-    .filter(line => line)
-    .map(line => {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line)
+    .map((line) => {
       // Try to extract speaker and message
       const match = line.match(/^(.*?):\s*(.*)$/);
       if (match) {
         return {
           speaker: match[1].trim(),
-          message: match[2].trim()
+          message: match[2].trim(),
         };
       }
       return null;
     })
-    .filter(item => item !== null);
+    .filter((item) => item !== null);
 };
 
 export default function TrumanWorldApp() {
@@ -479,7 +481,8 @@ export default function TrumanWorldApp() {
           }),
         });
 
-        if (!response.ok) throw new Error("Failed to fetch agent autonomous message");
+        if (!response.ok)
+          throw new Error("Failed to fetch agent autonomous message");
 
         const data = await response.json();
         const conversationParts = parseConversationText(data.response);
@@ -487,20 +490,26 @@ export default function TrumanWorldApp() {
         // Add each part of the conversation separately
         for (const part of conversationParts) {
           const messageType = part.speaker === "Truman" ? "response" : "action";
-          
-          setConversation(prev => [...prev, {
-            type: messageType,
-            from: part.speaker,
-            text: part.message,
-            suspicionIncrease: messageType === "response" ? calculateSuspicionIncrease(part.message) : 0
-          }]);
+
+          setConversation((prev) => [
+            ...prev,
+            {
+              type: messageType,
+              from: part.speaker,
+              text: part.message,
+              suspicionIncrease:
+                messageType === "response"
+                  ? calculateSuspicionIncrease(part.message)
+                  : 0,
+            },
+          ]);
 
           // Update agent conversations
-          setAgentConversations(prev => ({
+          setAgentConversations((prev) => ({
             ...prev,
             [agent.name]: [
               ...(prev[agent.name] || []),
-              { from: part.speaker, text: part.message }
+              { from: part.speaker, text: part.message },
             ],
           }));
         }
@@ -681,6 +690,10 @@ export default function TrumanWorldApp() {
 
   return (
     <div className="h-screen bg-gray-900 text-white">
+      {/* Add DynamicWidget */}
+      <div className="absolute top-4 right-4 z-50">
+        <DynamicWidget />
+      </div>
       {/* Main grid layout */}
       <div className="grid grid-cols-[1fr_400px] h-full">
         {/* Left Column - Main Content */}
@@ -757,7 +770,11 @@ export default function TrumanWorldApp() {
                 <div className="bg-gray-800 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <img src="/truman.png" alt="Truman" className="h-10 w-10" />
+                      <img
+                        src="/truman.png"
+                        alt="Truman"
+                        className="h-10 w-10"
+                      />
                       <h2 className="font-bold">{truman.name}</h2>
                     </div>
                     <div className="text-sm">
@@ -849,9 +866,13 @@ export default function TrumanWorldApp() {
                     <div className="space-y-2 p-2">
                       {conversation.map((msg, i) => (
                         <div key={i} className="mb-2">
-                          <div className={`flex gap-2 ${
-                            msg.type === "response" ? "text-green-400" : "text-blue-400"
-                          }`}>
+                          <div
+                            className={`flex gap-2 ${
+                              msg.type === "response"
+                                ? "text-green-400"
+                                : "text-blue-400"
+                            }`}
+                          >
                             <span className="font-bold">{msg.from}:</span>
                             <span className="text-white">{msg.text}</span>
                           </div>

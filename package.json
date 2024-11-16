@@ -9,9 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@dynamic-labs/ethereum": "^3.6.3",
+    "@dynamic-labs/ethers-v6": "^3.6.3",
+    "@dynamic-labs/sdk-react-core": "^3.6.3",
+    "@dynamic-labs/wagmi-connector": "^3.6.3",
     "@radix-ui/react-slot": "^1.1.0",
+    "@tanstack/react-query": "^5.60.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "ethers": "^6.13.4",
     "lucide-react": "^0.460.0",
     "next": "15.0.3",
     "openai": "^4.72.0",
@@ -19,6 +25,8 @@
     "react-dom": "19.0.0-rc-66855b96-20241106",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
+    "viem": "^2.21.45",
+    "wagmi": "^2.12.33",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
