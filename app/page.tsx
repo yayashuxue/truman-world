@@ -1,5 +1,5 @@
 "use client";
-
+import GlobalChat from "./components/GlobalChat";
 import { useEffect, useState } from "react";
 import {
   Home,
@@ -191,6 +191,20 @@ const StatusBadge = ({ children, className = "" }) => (
   </div>
 );
 
+// Add these types
+interface WorldState {
+  weather: string;
+  timeOfDay: string;
+  currentEvent: string | null;
+  suspicionMeter: number;
+  viewerCount: string;
+}
+
+interface ChatMessage {
+  from: string;
+  text: string;
+}
+
 export default function TrumanWorldApp() {
   // Combine state from both components
 
@@ -208,13 +222,85 @@ export default function TrumanWorldApp() {
 
   // From TrumanWorld:
   // Game state
-  const [worldState, setWorldState] = useState({
-    weather: "Sunny",
-    timeOfDay: "Morning",
-    currentEvent: "Coffee shortage in town",
-    suspicionMeter: 20, // percentage
-    viewerCount: "1.2M",
+  const [worldState, setWorldState] = useState<WorldState>({
+    weather: 'Sunny',
+    timeOfDay: 'Morning',
+    currentEvent: null,
+    suspicionMeter: 20,
+    viewerCount: '1.2M',
   });
+
+  const [recentEvents, setRecentEvents] = useState<string[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+const handleSendMessageToWorldAi = async (message) => {
+  // Add the user's message to the chat
+  setChatMessages((prev) => [...prev, { from: "User", text: message }]);
+
+  // Fetch the World AI's response
+  try {
+    const response = await fetch("/api/world-ai-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, chatHistory: chatMessages }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch World AI chat response");
+    }
+
+    const data = await response.json();
+
+    // Add the World AI's response to the chat
+    setChatMessages((prev) => [
+      ...prev,
+      { from: "World AI", text: data.response },
+    ]);
+  } catch (error) {
+    console.error("Error communicating with World AI:", error);
+  }
+};
+
+
+
+  const triggerWorldAi = async () => {
+    console.log("Triggering World AI ... ");
+
+    try {
+      const response = await fetch('/api/world-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ worldState, recentEvents }),
+      });
+      console.log("World AI response", response);
+      if (!response.ok) {
+        throw new Error('Failed to fetch World AI response');
+      }
+
+      const data = await response.json();
+
+      if (data.changes) {
+        setWorldState(prev => ({
+          ...prev,
+          ...data.changes,
+          currentEvent: data.event,
+        }));
+      }
+
+      setRecentEvents(prev => [...prev, data.event]);
+    } catch (error) {
+      console.error('Error triggering World AI:', error);
+    }
+  };
+
+  // Add World AI periodic trigger
+  useEffect(() => {
+    const interval = setInterval(() => {
+      triggerWorldAi();
+    }, 10000); // Every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [worldState, recentEvents]);
 
   // Truman's state
   const [truman, setTruman] = useState({
@@ -249,7 +335,7 @@ export default function TrumanWorldApp() {
   ]);
 
   // Active bets
-  const [bets] = useState([
+  const [bets, setBets] = useState([
     {
       id: 1,
       question: "Will Truman notice today's staged event?",
@@ -267,7 +353,38 @@ export default function TrumanWorldApp() {
       odds: { Yes: "10.0", No: "1.1" },
     },
   ]);
+  
+  const generateNewBet = async () => {
+    console.log("Generating new bet ... ");
+    // Call the World AI to generate a new bet
+    try {
+      const response = await fetch("/api/world-ai-bets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ worldState, recentEvents }),
+      });
+      console.log("World AI bets response", response);
+      if (!response.ok) {
+        throw new Error("Failed to fetch new bet from World AI");
+      }
 
+      const data = await response.json();
+
+      // Add the new bet to the list
+      setBets((prev) => [...prev, data.bet]);
+    } catch (error) {
+      console.error("Error generating new bet:", error);
+    }
+  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      generateNewBet();
+    }, 10000); // Every 10 seconds (adjust as needed)
+
+    return () => clearInterval(interval);
+  }, [worldState, recentEvents]);
+
+  
   const [selectedActor, setSelectedActor] = useState(null);
   const [instruction, setInstruction] = useState("");
   const [conversation, setConversation] = useState([]);
@@ -308,7 +425,6 @@ export default function TrumanWorldApp() {
           currentLocation,
         }),
       });
-      console.log("Truman's next action response", response);
       if (!response.ok) throw new Error('Failed to fetch Truman\'s next action');
 
       const data = await response.json();
@@ -505,12 +621,12 @@ export default function TrumanWorldApp() {
     // Truman's autonomous movement
     const trumanInterval = setInterval(() => {
       trumanDecideNextAction();
-    }, 3000); // Every 3 seconds
+    }, 10000); // Every 5 seconds
 
     // Agents' autonomous actions
     const agentsInterval = setInterval(() => {
       agentAutonomousActions();
-    }, 500); // Every 5 seconds
+    }, 10000); // Every 10 seconds
 
     return () => {
       clearInterval(trumanInterval);
@@ -569,6 +685,16 @@ export default function TrumanWorldApp() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Add the Global Chat Card here */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Global Chat with World AI</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GlobalChat messages={chatMessages} onSendMessage={handleSendMessageToWorldAi} />
           </CardContent>
         </Card>
 
