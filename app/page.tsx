@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Home,
   User,
@@ -184,6 +184,13 @@ function calculateSuspicionIncrease(responseText) {
   return suspicionIncrease;
 }
 
+// Add this new component near other UI components at the top
+const StatusBadge = ({ children, className = "" }) => (
+  <div className={`px-3 py-1 rounded-full text-sm font-medium ${className}`}>
+    {children}
+  </div>
+);
+
 export default function TrumanWorldApp() {
   // Combine state from both components
 
@@ -264,6 +271,111 @@ export default function TrumanWorldApp() {
   const [selectedActor, setSelectedActor] = useState(null);
   const [instruction, setInstruction] = useState("");
   const [conversation, setConversation] = useState([]);
+  const [agentConversations, setAgentConversations] = useState<{
+    [key: string]: Array<{ from: string; text: string }>;
+  }>({});
+
+  // Function to get agent's response to user instruction
+  const getAgentResponse = async (agentName: string, userInstruction: string) => {
+    try {
+      const agentHistory = agentConversations[agentName] || [];
+
+      const response = await fetch('/api/agent-response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentName, userInstruction, agentHistory }),
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch agent response');
+
+      const data = await response.json();
+      return data.response;
+    } catch (error) {
+      console.error('Error fetching agent response:', error);
+      return "I'm not sure what you mean.";
+    }
+  };
+
+  // Function for Truman's autonomous movement
+  const trumanDecideNextAction = async () => {
+    try {
+      const response = await fetch('/api/truman-next-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          suspicionLevel: worldState.suspicionMeter,
+          conversationHistory: conversation,
+          currentLocation,
+        }),
+      });
+      console.log("Truman's next action response", response);
+      if (!response.ok) throw new Error('Failed to fetch Truman\'s next action');
+
+      const data = await response.json();
+      if (locations[data.nextAction]) {
+        moveTruman(data.nextAction);
+      }
+    } catch (error) {
+      console.error('Error determining Truman\'s next action:', error);
+    }
+  };
+
+  // Function for autonomous agent actions
+  const agentAutonomousActions = async () => {
+    for (const agent of actors) {
+      // 30% chance for each agent to interact
+      if (Math.random() > 0.3) continue;
+
+      try {
+        const response = await fetch('/api/agent-autonomous-action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agentName: agent.name,
+            agentHistory: agentConversations[agent.name] || [],
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch agent autonomous message');
+
+        const data = await response.json();
+        const agentMessage = data.response;
+
+        // Update agent's conversation history
+        setAgentConversations((prev) => ({
+          ...prev,
+          [agent.name]: [
+            ...(prev[agent.name] || []),
+            { from: agent.name, text: agentMessage },
+          ],
+        }));
+
+        // Add to main conversation
+        const actorAction = {
+          type: 'action',
+          from: agent.name,
+          text: agentMessage,
+        };
+
+        setConversation((prev) => [...prev, actorAction]);
+
+        // Get Truman's response
+        const trumanResponse = await getTrumanResponse(agent.name, agentMessage);
+        
+        const newInteraction = {
+          type: 'response',
+          from: 'Truman',
+          text: trumanResponse.text,
+          suspicionIncrease: trumanResponse.suspicionIncrease,
+        };
+
+        setConversation((prev) => [...prev, newInteraction]);
+
+      } catch (error) {
+        console.error('Error in autonomous agent action:', error);
+      }
+    }
+  };
 
   // Simulate Truman's movement
   const moveTruman = (targetLocation) => {
@@ -348,55 +460,63 @@ export default function TrumanWorldApp() {
     }
   };
 
+  // Update handleInstruction to use the new agent response system
   const handleInstruction = async () => {
     if (!instruction.trim() || !selectedActor) return;
 
-    // Show actor's action immediately
+    // Get agent's response to the instruction
+    const agentResponse = await getAgentResponse(selectedActor.name, instruction);
+
+    // Update agent's conversation history
+    setAgentConversations((prev) => ({
+      ...prev,
+      [selectedActor.name]: [
+        ...(prev[selectedActor.name] || []),
+        { from: 'User', text: instruction },
+        { from: selectedActor.name, text: agentResponse },
+      ],
+    }));
+
+    // Show agent's action in the conversation
     const actorAction = {
-      type: "action",
+      type: 'action',
       from: selectedActor.name,
-      text: `${selectedActor.name}: ${instruction}`,
+      text: agentResponse,
     };
 
     setConversation((prev) => [...prev, actorAction]);
-    setInstruction("");
+    setInstruction('');
 
     // Get Truman's response
-    const trumanResponse = await getTrumanResponse(
-      selectedActor.name,
-      instruction
-    );
+    const trumanResponse = await getTrumanResponse(selectedActor.name, agentResponse);
 
-    const newInteraction = [
-      // Director's instruction
-      {
-        type: "instruction",
-        from: "director",
-        text: `Instructing ${selectedActor.name}: ${instruction}`,
-      },
-      // Truman's response
-      {
-        type: "response",
-        from: "Truman",
-        text: trumanResponse.text,
-        suspicionIncrease: trumanResponse.suspicionIncrease,
-      },
-    ];
+    const newInteraction = {
+      type: 'response',
+      from: 'Truman',
+      text: trumanResponse.text,
+      suspicionIncrease: trumanResponse.suspicionIncrease,
+    };
 
-    setConversation((prev) => [...prev, ...newInteraction]);
-
-    // Update actor's state if needed
-    if (trumanResponse.suspicionIncrease > 20) {
-      setActors((prevActors) =>
-        prevActors.map((actor) =>
-          actor.name === selectedActor.name
-            ? { ...actor, trustLevel: Math.max(0, actor.trustLevel - 5) }
-            : actor
-        )
-      );
-    }
+    setConversation((prev) => [...prev, newInteraction]);
   };
 
+  // Set up autonomous behaviors
+  useEffect(() => {
+    // Truman's autonomous movement
+    const trumanInterval = setInterval(() => {
+      trumanDecideNextAction();
+    }, 3000); // Every 3 seconds
+
+    // Agents' autonomous actions
+    const agentsInterval = setInterval(() => {
+      agentAutonomousActions();
+    }, 500); // Every 5 seconds
+
+    return () => {
+      clearInterval(trumanInterval);
+      clearInterval(agentsInterval);
+    };
+  }, [conversation, worldState.suspicionMeter, currentLocation]);
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -463,10 +583,12 @@ export default function TrumanWorldApp() {
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <div className="font-medium text-gray-600">
-                  Current Activity
+                <div className="font-medium text-gray-600">Current Activity</div>
+                <div className="mt-1 flex items-center gap-2">
+                  <StatusBadge className="bg-blue-100 text-blue-800">
+                    {truman.currentActivity}
+                  </StatusBadge>
                 </div>
-                <div className="mt-1">{truman.currentActivity}</div>
               </div>
               <div>
                 <div className="font-medium text-gray-600">Mood</div>
@@ -475,6 +597,18 @@ export default function TrumanWorldApp() {
               <div>
                 <div className="font-medium text-gray-600">Suspicion Level</div>
                 <div className="mt-1">{truman.suspicionLevel}</div>
+              </div>
+            </div>
+            {/* Add next destination indicator */}
+            <div className="mt-4 border-t pt-4">
+              <div className="font-medium text-gray-600">Next Destination</div>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="animate-pulse">
+                  <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                </div>
+                <span className="text-blue-600">
+                  Moving to: {locations[currentLocation]?.label}
+                </span>
               </div>
             </div>
           </CardContent>

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         role: msg.from === agentName ? 'assistant' : 'user',
         content: `${msg.from}: ${msg.text}`
       })),
-      { role: "user", content: `Instruction: ${userInstruction}` }
+      { role: "user", content: `Instruction: the audiance give you some instructions: ${userInstruction} you should just chat with Truman following the instructions` }
     ];
 
     const completion = await openai.chat.completions.create({
