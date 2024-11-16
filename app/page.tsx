@@ -10,6 +10,7 @@ import {
   CloudRain,
   AlertTriangle,
 } from "lucide-react";
+import { useGlobalContext } from './store/globalContext';
 
 // Placeholder UI components, replace these with your actual UI components
 const Card = ({ children, className = "" }) => (
@@ -155,8 +156,8 @@ const TrumanIndicator = ({ x, y }) => {
       style={{ left: `${x}%`, top: `${y}%` }}
     >
       <div className="relative">
-        <div className="p-2 rounded-full bg-red-500 text-white animate-pulse">
-          <User className="h-6 w-6" />
+        <div className="p-2 rounded-full bg-trans text-white animate-pulse">
+          <img src="/truman.png" className="h-6 w-6" />
         </div>
         <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping" />
       </div>
@@ -205,7 +206,30 @@ interface ChatMessage {
   text: string;
 }
 
+// First, add this helper function to parse conversation text
+const parseConversationText = (text: string) => {
+  // Split by newlines and filter empty lines
+  return text.split('\n')
+    .map(line => line.trim())
+    .filter(line => line)
+    .map(line => {
+      // Try to extract speaker and message
+      const match = line.match(/^(.*?):\s*(.*)$/);
+      if (match) {
+        return {
+          speaker: match[1].trim(),
+          message: match[2].trim()
+        };
+      }
+      return null;
+    })
+    .filter(item => item !== null);
+};
+
 export default function TrumanWorldApp() {
+  // Add global context
+  const { addEvent, cleanup } = useGlobalContext();
+
   // Combine state from both components
 
   // From GameMap:
@@ -223,73 +247,71 @@ export default function TrumanWorldApp() {
   // From TrumanWorld:
   // Game state
   const [worldState, setWorldState] = useState<WorldState>({
-    weather: 'Sunny',
-    timeOfDay: 'Morning',
+    weather: "Sunny",
+    timeOfDay: "Morning",
     currentEvent: null,
     suspicionMeter: 20,
-    viewerCount: '1.2M',
+    viewerCount: "1.2M",
   });
 
   const [recentEvents, setRecentEvents] = useState<string[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
-const handleSendMessageToWorldAi = async (message) => {
-  // Add the user's message to the chat
-  setChatMessages((prev) => [...prev, { from: "User", text: message }]);
+  const handleSendMessageToWorldAi = async (message) => {
+    // Add the user's message to the chat
+    setChatMessages((prev) => [...prev, { from: "User", text: message }]);
 
-  // Fetch the World AI's response
-  try {
-    const response = await fetch("/api/world-ai-chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, chatHistory: chatMessages }),
-    });
+    // Fetch the World AI's response
+    try {
+      const response = await fetch("/api/world-ai-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, chatHistory: chatMessages }),
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch World AI chat response");
+      if (!response.ok) {
+        throw new Error("Failed to fetch World AI chat response");
+      }
+
+      const data = await response.json();
+
+      // Add the World AI's response to the chat
+      setChatMessages((prev) => [
+        ...prev,
+        { from: "World AI", text: data.response },
+      ]);
+    } catch (error) {
+      console.error("Error communicating with World AI:", error);
     }
-
-    const data = await response.json();
-
-    // Add the World AI's response to the chat
-    setChatMessages((prev) => [
-      ...prev,
-      { from: "World AI", text: data.response },
-    ]);
-  } catch (error) {
-    console.error("Error communicating with World AI:", error);
-  }
-};
-
-
+  };
 
   const triggerWorldAi = async () => {
     console.log("Triggering World AI ... ");
 
     try {
-      const response = await fetch('/api/world-ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/world-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ worldState, recentEvents }),
       });
       console.log("World AI response", response);
       if (!response.ok) {
-        throw new Error('Failed to fetch World AI response');
+        throw new Error("Failed to fetch World AI response");
       }
 
       const data = await response.json();
 
       if (data.changes) {
-        setWorldState(prev => ({
+        setWorldState((prev) => ({
           ...prev,
           ...data.changes,
           currentEvent: data.event,
         }));
       }
 
-      setRecentEvents(prev => [...prev, data.event]);
+      setRecentEvents((prev) => [...prev, data.event]);
     } catch (error) {
-      console.error('Error triggering World AI:', error);
+      console.error("Error triggering World AI:", error);
     }
   };
 
@@ -353,15 +375,19 @@ const handleSendMessageToWorldAi = async (message) => {
       odds: { Yes: "10.0", No: "1.1" },
     },
   ]);
-  
+
   const generateNewBet = async () => {
-    console.log("Generating new bet ... ");
-    // Call the World AI to generate a new bet
+    const state = useGlobalContext.getState();
+
     try {
       const response = await fetch("/api/world-ai-bets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ worldState, recentEvents }),
+        body: JSON.stringify({
+          worldState,
+          recentEvents: state.recentEvents,
+          globalSuspicion: state.globalSuspicion,
+        }),
       });
       console.log("World AI bets response", response);
       if (!response.ok) {
@@ -379,12 +405,11 @@ const handleSendMessageToWorldAi = async (message) => {
   useEffect(() => {
     const interval = setInterval(() => {
       generateNewBet();
-    }, 10000); // Every 10 seconds (adjust as needed)
+    }, 10000); // Every 20 seconds (adjust as needed)
 
     return () => clearInterval(interval);
   }, [worldState, recentEvents]);
 
-  
   const [selectedActor, setSelectedActor] = useState(null);
   const [instruction, setInstruction] = useState("");
   const [conversation, setConversation] = useState([]);
@@ -393,22 +418,25 @@ const handleSendMessageToWorldAi = async (message) => {
   }>({});
 
   // Function to get agent's response to user instruction
-  const getAgentResponse = async (agentName: string, userInstruction: string) => {
+  const getAgentResponse = async (
+    agentName: string,
+    userInstruction: string
+  ) => {
     try {
       const agentHistory = agentConversations[agentName] || [];
 
-      const response = await fetch('/api/agent-response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/agent-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agentName, userInstruction, agentHistory }),
       });
 
-      if (!response.ok) throw new Error('Failed to fetch agent response');
+      if (!response.ok) throw new Error("Failed to fetch agent response");
 
       const data = await response.json();
       return data.response;
     } catch (error) {
-      console.error('Error fetching agent response:', error);
+      console.error("Error fetching agent response:", error);
       return "I'm not sure what you mean.";
     }
   };
@@ -416,79 +444,68 @@ const handleSendMessageToWorldAi = async (message) => {
   // Function for Truman's autonomous movement
   const trumanDecideNextAction = async () => {
     try {
-      const response = await fetch('/api/truman-next-action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/truman-next-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           suspicionLevel: worldState.suspicionMeter,
           conversationHistory: conversation,
           currentLocation,
         }),
       });
-      if (!response.ok) throw new Error('Failed to fetch Truman\'s next action');
+      if (!response.ok) throw new Error("Failed to fetch Truman's next action");
 
       const data = await response.json();
       if (locations[data.nextAction]) {
         moveTruman(data.nextAction);
       }
     } catch (error) {
-      console.error('Error determining Truman\'s next action:', error);
+      console.error("Error determining Truman's next action:", error);
     }
   };
 
   // Function for autonomous agent actions
   const agentAutonomousActions = async () => {
     for (const agent of actors) {
-      // 30% chance for each agent to interact
       if (Math.random() > 0.3) continue;
 
       try {
-        const response = await fetch('/api/agent-autonomous-action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/agent-autonomous-action", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             agentName: agent.name,
             agentHistory: agentConversations[agent.name] || [],
           }),
         });
 
-        if (!response.ok) throw new Error('Failed to fetch agent autonomous message');
+        if (!response.ok) throw new Error("Failed to fetch agent autonomous message");
 
         const data = await response.json();
-        const agentMessage = data.response;
+        const conversationParts = parseConversationText(data.response);
 
-        // Update agent's conversation history
-        setAgentConversations((prev) => ({
-          ...prev,
-          [agent.name]: [
-            ...(prev[agent.name] || []),
-            { from: agent.name, text: agentMessage },
-          ],
-        }));
+        // Add each part of the conversation separately
+        for (const part of conversationParts) {
+          const messageType = part.speaker === "Truman" ? "response" : "action";
+          
+          setConversation(prev => [...prev, {
+            type: messageType,
+            from: part.speaker,
+            text: part.message,
+            suspicionIncrease: messageType === "response" ? calculateSuspicionIncrease(part.message) : 0
+          }]);
 
-        // Add to main conversation
-        const actorAction = {
-          type: 'action',
-          from: agent.name,
-          text: agentMessage,
-        };
-
-        setConversation((prev) => [...prev, actorAction]);
-
-        // Get Truman's response
-        const trumanResponse = await getTrumanResponse(agent.name, agentMessage);
-        
-        const newInteraction = {
-          type: 'response',
-          from: 'Truman',
-          text: trumanResponse.text,
-          suspicionIncrease: trumanResponse.suspicionIncrease,
-        };
-
-        setConversation((prev) => [...prev, newInteraction]);
-
+          // Update agent conversations
+          setAgentConversations(prev => ({
+            ...prev,
+            [agent.name]: [
+              ...(prev[agent.name] || []),
+              { from: part.speaker, text: part.message }
+            ],
+          }));
+        }
       } catch (error) {
-        console.error('Error in autonomous agent action:', error);
+        console.error("Error in autonomous agent action:", error);
       }
     }
   };
@@ -497,6 +514,14 @@ const handleSendMessageToWorldAi = async (message) => {
   const moveTruman = (targetLocation) => {
     const target = locations[targetLocation];
     setCurrentLocation(targetLocation);
+
+    // Add movement event to global context
+    addEvent({
+      type: "MOVEMENT",
+      description: `Truman moved to ${target.label}`,
+      location: targetLocation,
+      actors: ["Truman"],
+    });
 
     // Update Truman's current activity
     setTruman((prev) => ({
@@ -581,34 +606,40 @@ const handleSendMessageToWorldAi = async (message) => {
     if (!instruction.trim() || !selectedActor) return;
 
     // Get agent's response to the instruction
-    const agentResponse = await getAgentResponse(selectedActor.name, instruction);
+    const agentResponse = await getAgentResponse(
+      selectedActor.name,
+      instruction
+    );
 
     // Update agent's conversation history
     setAgentConversations((prev) => ({
       ...prev,
       [selectedActor.name]: [
         ...(prev[selectedActor.name] || []),
-        { from: 'User', text: instruction },
+        { from: "User", text: instruction },
         { from: selectedActor.name, text: agentResponse },
       ],
     }));
 
     // Show agent's action in the conversation
     const actorAction = {
-      type: 'action',
+      type: "action",
       from: selectedActor.name,
       text: agentResponse,
     };
 
     setConversation((prev) => [...prev, actorAction]);
-    setInstruction('');
+    setInstruction("");
 
     // Get Truman's response
-    const trumanResponse = await getTrumanResponse(selectedActor.name, agentResponse);
+    const trumanResponse = await getTrumanResponse(
+      selectedActor.name,
+      agentResponse
+    );
 
     const newInteraction = {
-      type: 'response',
-      from: 'Truman',
+      type: "response",
+      from: "Truman",
       text: trumanResponse.text,
       suspicionIncrease: trumanResponse.suspicionIncrease,
     };
@@ -634,337 +665,299 @@ const handleSendMessageToWorldAi = async (message) => {
     };
   }, [conversation, worldState.suspicionMeter, currentLocation]);
 
+  // Add cleanup effect
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      // Get and log the current context state
+      const state = useGlobalContext.getState();
+      console.log("Current Global Context:", state);
+
+      // Run cleanup
+      cleanup();
+    }, 30000);
+
+    return () => clearInterval(cleanupInterval);
+  }, [cleanup]);
+
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Show Status */}
-        <Card className="bg-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5 text-red-500 animate-pulse" />
-              The Truman Show - Live
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-5 gap-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="font-medium text-gray-600">Viewers</div>
-                <div className="text-xl mt-1">{worldState.viewerCount}</div>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="font-medium text-gray-600">Weather</div>
-                <div className="text-xl mt-1 flex items-center gap-2">
-                  <CloudRain className="h-5 w-5" />
-                  {worldState.weather}
+    <div className="h-screen bg-gray-900 text-white">
+      {/* Main grid layout */}
+      <div className="grid grid-cols-[1fr_400px] h-full">
+        {/* Left Column - Main Content */}
+        <div className="p-4 space-y-4 overflow-hidden flex flex-col">
+          {/* Header with show status */}
+          <div className="bg-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Camera className="h-5 w-5 text-red-500 animate-pulse" />
+                  <h1 className="text-xl font-bold">The Truman Show</h1>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    {worldState.timeOfDay}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <CloudRain className="h-4 w-4" />
+                    {worldState.weather}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 px-2 py-1 bg-red-500/10 text-red-400 rounded">
+                      <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                      LIVE
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="font-medium text-gray-600">Time</div>
-                <div className="text-xl mt-1 flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  {worldState.timeOfDay}
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400">Viewers:</span>
+                <span className="font-bold">{worldState.viewerCount}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Main content grid */}
+          <div className="grid grid-rows-[1fr_500px] gap-4 flex-1 overflow-hidden">
+            {/* Top section with map and status */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Map */}
+              <div className="bg-gray-800 rounded-lg p-4 h-[500px]">
+                <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
+                  {/* Keep existing map elements */}
+                  {/* Background elements */}
+                  <div className="absolute inset-0">
+                    <div className="absolute left-1/4 right-1/4 top-1/2 h-0.5 bg-gray-700" />
+                    <div className="absolute top-1/4 bottom-1/4 left-1/2 w-0.5 bg-gray-700" />
+                    <div className="absolute top-1/4 left-1/4 w-16 h-16 bg-green-900/30 rounded-full" />
+                    <div className="absolute bottom-1/3 right-1/4 w-20 h-20 bg-green-900/30 rounded-full" />
+                  </div>
+
+                  {/* Location markers */}
+                  {Object.entries(locations).map(([key, location]) => (
+                    <MapLocation
+                      key={key}
+                      icon={location.icon}
+                      x={location.x}
+                      y={location.y}
+                      label={location.label}
+                      isActive={currentLocation === key}
+                      onClick={() => moveTruman(key)}
+                    />
+                  ))}
+
+                  {/* Truman indicator */}
+                  <TrumanIndicator x={trumanPosition.x} y={trumanPosition.y} />
                 </div>
               </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="font-medium text-gray-600">Current Event</div>
-                <div className="text-xl mt-1">{worldState.currentEvent}</div>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="font-medium text-gray-600">Suspicion Meter</div>
-                <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${
-                      worldState.suspicionMeter > 70
-                        ? "bg-red-500"
-                        : worldState.suspicionMeter > 40
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
-                    }`}
-                    style={{ width: `${worldState.suspicionMeter}%` }}
-                  />
+
+              {/* Status and quick controls */}
+              <div className="space-y-4">
+                {/* Truman status */}
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <img src="/truman.png" alt="Truman" className="h-10 w-10" />
+                      <h2 className="font-bold">{truman.name}</h2>
+                    </div>
+                    <div className="text-sm">
+                      Suspicion: {truman.suspicionLevel}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <span className="text-gray-400">Activity:</span>
+                      <div className="mt-1 bg-gray-900 px-3 py-1.5 rounded">
+                        {truman.currentActivity}
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-gray-400">Mood:</span>
+                      <div className="mt-1 bg-gray-900 px-3 py-1.5 rounded">
+                        {truman.currentMood}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Suspicion meter */}
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Suspicion Level</span>
+                    <span>{worldState.suspicionMeter}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${
+                        worldState.suspicionMeter > 70
+                          ? "bg-red-500"
+                          : worldState.suspicionMeter > 40
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
+                      }`}
+                      style={{ width: `${worldState.suspicionMeter}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Current Event */}
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <div className="text-sm text-gray-400 mb-2">
+                    Current Event
+                  </div>
+                  <div className="bg-gray-900 px-3 py-2 rounded h-[150px] overflow-y-auto">
+                    {worldState.currentEvent || "No active event"}
+                  </div>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Add the Global Chat Card here */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Global Chat with World AI</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <GlobalChat messages={chatMessages} onSendMessage={handleSendMessageToWorldAi} />
-          </CardContent>
-        </Card>
-
-        {/* Truman Status */}
-        <Card className="border-2 border-blue-500">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              {truman.name}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <div className="font-medium text-gray-600">Current Activity</div>
-                <div className="mt-1 flex items-center gap-2">
-                  <StatusBadge className="bg-blue-100 text-blue-800">
-                    {truman.currentActivity}
-                  </StatusBadge>
-                </div>
-              </div>
-              <div>
-                <div className="font-medium text-gray-600">Mood</div>
-                <div className="mt-1">{truman.currentMood}</div>
-              </div>
-              <div>
-                <div className="font-medium text-gray-600">Suspicion Level</div>
-                <div className="mt-1">{truman.suspicionLevel}</div>
-              </div>
-            </div>
-            {/* Add next destination indicator */}
-            <div className="mt-4 border-t pt-4">
-              <div className="font-medium text-gray-600">Next Destination</div>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="animate-pulse">
-                  <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
-                </div>
-                <span className="text-blue-600">
-                  Moving to: {locations[currentLocation]?.label}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Game Map */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Camera className="h-5 w-5 text-red-500" />
-              Seahaven Island
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative w-full aspect-video bg-blue-50 rounded-lg overflow-hidden">
-              {/* Background map elements */}
-              <div className="absolute inset-0 p-4">
-                {/* Roads */}
-                <div className="absolute left-1/4 right-1/4 top-1/2 h-1 bg-gray-300" />
-                <div className="absolute top-1/4 bottom-1/4 left-1/2 w-1 bg-gray-300" />
-
-                {/* Water */}
-                <div className="absolute bottom-0 left-0 right-0 h-1/6 bg-blue-200 opacity-50" />
-
-                {/* Green spaces */}
-                <div className="absolute top-1/4 left-1/4 w-16 h-16 bg-green-200 rounded-full opacity-50" />
-                <div className="absolute bottom-1/3 right-1/4 w-20 h-20 bg-green-200 rounded-full opacity-50" />
-              </div>
-
-              {/* Location markers */}
-              {Object.entries(locations).map(([key, location]) => (
-                <MapLocation
-                  key={key}
-                  icon={location.icon}
-                  x={location.x}
-                  y={location.y}
-                  label={location.label}
-                  isActive={currentLocation === key}
-                  onClick={() => moveTruman(key)}
-                />
-              ))}
-
-              {/* Truman's position */}
-              <TrumanIndicator x={trumanPosition.x} y={trumanPosition.y} />
-            </div>
-
-            {/* Quick navigation */}
-            <div className="mt-4 flex gap-2 flex-wrap">
-              {Object.entries(locations).map(([key, location]) => (
-                <Button
-                  key={key}
-                  variant={currentLocation === key ? "default" : "outline"}
-                  onClick={() => moveTruman(key)}
-                  className="flex items-center gap-2"
-                >
-                  <location.icon className="h-4 w-4" />
-                  <span>{location.label}</span>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-2 gap-6">
-          {/* Left Column: Actors and Direction */}
-          <div className="space-y-6">
-            {/* Actors Grid */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Cast Members</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4">
+            {/* Bottom section with agent controls */}
+            <div className="bg-gray-800 rounded-lg p-4 flex flex-col min-h-0 mt-0">
+              {/* Agent selection tabs */}
+              <div className="flex items-center gap-4 mb-4 flex-shrink-0">
                 {actors.map((actor) => (
-                  <div
+                  <button
                     key={actor.name}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                      selectedActor?.name === actor.name
-                        ? "border-blue-500 shadow-lg"
-                        : ""
-                    }`}
                     onClick={() => setSelectedActor(actor)}
+                    className={`px-3 py-1.5 rounded ${
+                      selectedActor?.name === actor.name
+                        ? "bg-blue-500"
+                        : "bg-gray-700 hover:bg-gray-600"
+                    }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-bold">{actor.name}</h3>
-                        <p className="text-sm text-gray-600">{actor.role}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-600">Trust Level</div>
-                        <div
-                          className={`font-bold ${
-                            actor.trustLevel > 90
-                              ? "text-green-600"
-                              : actor.trustLevel > 70
-                              ? "text-yellow-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {actor.trustLevel}%
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-sm text-gray-600">
-                      <div>Current: {actor.currentActivity}</div>
-                      <div>Agenda: {actor.agenda}</div>
-                    </div>
-                  </div>
+                    {/* <img
+                      src={
+                        actor.name === "Marlon"
+                          ? "marlon.png"
+                          : actor.name === "Meryl"
+                          ? "meryl.png"
+                          : ""
+                      }
+                      alt={actor.name}
+                      className="h-6 w-6 mr-2"
+                    /> */}
+                    {actor.name}
+                  </button>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* Director Controls */}
-            {selectedActor && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Direct {selectedActor.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 overflow-y-auto mb-4 border rounded-lg p-4 space-y-2">
-                    {conversation.map((msg, i) => (
-                      <div key={i} className="mb-3">
-                        {msg.type === "instruction" && (
-                          <div className="flex justify-end">
-                            <div className="bg-blue-100 text-blue-800 rounded-lg p-2 text-sm">
-                              {msg.text}
-                            </div>
+              {selectedActor ? (
+                <>
+                  {/* Chat messages - now properly scrollable */}
+                  <div className="flex-1 overflow-y-auto mb-4 min-h-0">
+                    <div className="space-y-2 p-2">
+                      {conversation.map((msg, i) => (
+                        <div key={i} className="mb-2">
+                          <div className={`flex gap-2 ${
+                            msg.type === "response" ? "text-green-400" : "text-blue-400"
+                          }`}>
+                            <span className="font-bold">{msg.from}:</span>
+                            <span className="text-white">{msg.text}</span>
                           </div>
-                        )}
-                        {msg.type === "action" && (
-                          <div className="flex justify-start">
-                            <div className="bg-green-100 text-green-800 rounded-lg p-2 text-sm">
-                              {msg.text}
-                            </div>
-                          </div>
-                        )}
-                        {msg.type === "response" && (
-                          <div className="space-y-1">
-                            <div className="flex justify-start">
-                              <div className="bg-gray-100 rounded-lg p-2 text-sm">
-                                <strong>Truman:</strong> {msg.text}
-                              </div>
-                            </div>
-                            {msg.suspicionIncrease > 0 && (
-                              <div className="flex items-center gap-1 text-yellow-600 text-xs">
-                                <AlertTriangle className="h-4 w-4" />
-                                Suspicion increased by {msg.suspicionIncrease}%
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Input
+                  {/* Input area */}
+                  <div className="flex gap-2 flex-shrink-0">
+                    <input
                       value={instruction}
                       onChange={(e) => setInstruction(e.target.value)}
                       onKeyPress={(e) =>
                         e.key === "Enter" && handleInstruction()
                       }
-                      placeholder={`Tell ${selectedActor.name} what to say to Truman...`}
-                      className="flex-1"
+                      placeholder={`Direct ${selectedActor.name}...`}
+                      className="flex-1 bg-gray-700 border-none rounded px-3 py-2"
                     />
-                    <Button onClick={handleInstruction}>
+                    <button
+                      onClick={handleInstruction}
+                      className="px-3 py-2 bg-blue-500 rounded"
+                    >
                       <Send className="h-4 w-4" />
-                    </Button>
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-gray-500">
+                  Select an actor to direct them
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Chat and Betting */}
+        <div className="border-l border-gray-800 grid grid-rows-[1fr_auto] h-full overflow-hidden">
+          {/* Global chat */}
+          <div className="flex flex-col h-full min-h-0">
+            <div className="p-4 border-b border-gray-800">
+              <h2 className="font-bold">Live Chat</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {chatMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${
+                    msg.from === "User" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded px-3 py-2 ${
+                      msg.from === "User" ? "bg-blue-500" : "bg-gray-800"
+                    }`}
+                  >
+                    <div className="text-xs text-gray-400 mb-1">{msg.from}</div>
+                    <div>{msg.text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Chat input */}
+            <div className="p-4 border-t border-gray-800">
+              <input
+                type="text"
+                placeholder="Send a message..."
+                className="w-full bg-gray-800 rounded px-3 py-2"
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && e.target.value) {
+                    handleSendMessageToWorldAi(e.target.value);
+                    e.target.value = "";
+                  }
+                }}
+              />
+            </div>
           </div>
 
-          {/* Right Column: Betting and Events */}
-          <div className="space-y-6">
-            {/* Active Bets */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Bets</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {bets.map((bet) => (
-                    <div key={bet.id} className="border rounded-lg p-4">
-                      <div className="font-medium mb-2">{bet.question}</div>
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        {bet.options.map((option) => (
-                          <Button
-                            key={option}
-                            variant="outline"
-                            onClick={() => placeBet(bet.id, option)}
-                            className="w-full"
-                          >
-                            {option} ({bet.odds[option]}x)
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="text-sm text-gray-500 flex justify-between">
-                        <span>Pool: {bet.pool}</span>
-                        <span>Ends in: {bet.endTime}</span>
-                      </div>
+          {/* Active bets - now with fixed height and scrollable */}
+          <div className="border-t border-gray-800 h-[500px] flex flex-col">
+            <div className="p-4 border-b border-gray-800">
+              <h2 className="font-bold">Active Bets</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-4">
+                {bets.map((bet) => (
+                  <div key={bet.id} className="bg-gray-800 rounded-lg p-4">
+                    <div className="font-medium mb-2">{bet.question}</div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      {bet.options.map((option) => (
+                        <button
+                          key={option}
+                          onClick={() => placeBet(bet.id, option)}
+                          className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded"
+                        >
+                          {option} ({bet.odds[option]}x)
+                        </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Discoveries */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Discoveries</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {truman.recentDiscoveries.length === 0 ? (
-                    <p className="text-gray-500 italic">
-                      No recent suspicious activities
-                    </p>
-                  ) : (
-                    truman.recentDiscoveries.map((discovery, i) => (
-                      <div
-                        key={i}
-                        className="p-2 bg-red-50 text-red-700 rounded"
-                      >
-                        {discovery}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="text-sm text-gray-400 flex justify-between">
+                      <span>Pool: {bet.pool}</span>
+                      <span>{bet.endTime}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
