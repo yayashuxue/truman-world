@@ -2,13 +2,16 @@
 
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { DynamicContextProvider } from '@dynamic-labs/sdk-react-core';
+import {
+  DynamicContextProvider,
+  mergeNetworks,
+} from "@dynamic-labs/sdk-react-core";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
-import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
-import { createConfig, WagmiProvider } from 'wagmi';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { http } from 'viem';
-import { mainnet } from 'viem/chains';
+import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
+import { createConfig, WagmiProvider } from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http } from "viem";
+import { mainnet } from "viem/chains";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -31,7 +34,23 @@ const config = createConfig({
 });
 
 const queryClient = new QueryClient();
+const evmNetworks = [
+  {
+    blockExplorerUrls: ["https://explorer.testnet.zircuit.com"],
+    chainId: 48899,
+    chainName: "Ethereum Testnet",
+    name: "Ethereum",
+    nativeCurrency: {
+      decimals: 18,
+      name: "Ether",
+      symbol: "ETH",
+    },
+    networkId: 1,
 
+    rpcUrls: ["https://zircuit1-testnet.p2pify.com"],
+    vanityName: "ETH Mainnet",
+  },
+];
 
 export default function RootLayout({
   children,
@@ -45,15 +64,13 @@ export default function RootLayout({
       >
         <DynamicContextProvider
           settings={{
-            environmentId: 'b7adea7a-393c-4446-8973-772d1d9eea19',
+            environmentId: "b7adea7a-393c-4446-8973-772d1d9eea19",
             walletConnectors: [EthereumWalletConnectors],
           }}
         >
           <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
-              <DynamicWagmiConnector>
-                {children}
-              </DynamicWagmiConnector>
+              <DynamicWagmiConnector>{children}</DynamicWagmiConnector>
             </QueryClientProvider>
           </WagmiProvider>
         </DynamicContextProvider>

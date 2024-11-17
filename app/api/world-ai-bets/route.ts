@@ -23,8 +23,8 @@ export async function POST(request: Request) {
             "question": "Interesting bet question based on current events",
             "options": ["Option 1", "Option 2"],
             "endTime": "Time duration (e.g., '1 hour', '30 minutes')",
-            "pool": "Initial pool amount in USDC",
-            "odds": {"Option 1": "numerical_odds", "Option 2": "numerical_odds"}
+            "pool": "Initial pool amount in 0.002 in numerical format",
+            "odds": {"Option 1": numerical_odd", "Option 2": numerical_odds}
           }`
         },
         {

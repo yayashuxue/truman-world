@@ -12,186 +12,28 @@ import {
 } from "lucide-react";
 import { useGlobalContext } from "./store/globalContext";
 import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
-
-// Placeholder UI components, replace these with your actual UI components
-const Card = ({ children, className = "" }) => (
-  <div className={`bg-white rounded shadow ${className}`}>{children}</div>
-);
-const CardHeader = ({ children }) => (
-  <div className="border-b p-4">{children}</div>
-);
-const CardTitle = ({ children, className = "" }) => (
-  <h2 className={`text-xl font-bold ${className}`}>{children}</h2>
-);
-const CardContent = ({ children, className = "" }) => (
-  <div className={`p-4 ${className}`}>{children}</div>
-);
-const Button = ({
-  children,
-  onClick,
-  variant = "default",
-  className = "",
-  ...props
-}) => (
-  <button
-    onClick={onClick}
-    className={`px-4 py-2 rounded ${
-      variant === "outline"
-        ? "border border-gray-300 text-gray-700"
-        : "bg-blue-500 text-white"
-    } ${className}`}
-    {...props}
-  >
-    {children}
-  </button>
-);
-const Input = ({ className = "", ...props }) => (
-  <input
-    className={`border rounded px-3 py-2 focus:outline-none focus:ring ${className}`}
-    {...props}
-  />
-);
-
-// Custom icons to replace the unsupported ones
-const Briefcase = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-  </svg>
-);
-
-const Coffee = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M17 8h1a4 4 0 1 1 0 8h-1"></path>
-    <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"></path>
-    <line x1="6" y1="2" x2="6" y2="4"></line>
-    <line x1="10" y1="2" x2="10" y2="4"></line>
-    <line x1="14" y1="2" x2="14" y2="4"></line>
-  </svg>
-);
-
-const Store = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"></path>
-    <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"></path>
-    <path d="M12 12v5"></path>
-  </svg>
-);
-
-const Tree = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 3v18"></path>
-    <path d="M8 6a4 4 0 0 1 8 0c0 2-2 3-4 4-2-1-4-2-4-4Z"></path>
-    <path d="M8 12a4 4 0 0 1 8 0c0 2-2 3-4 4-2-1-4-2-4-4Z"></path>
-  </svg>
-);
-
-const MapLocation = ({ icon: Icon, x, y, label, isActive, onClick }) => {
-  return (
-    <div
-      className={`absolute cursor-pointer transform -translate-x-1/2 -translate-y-1/2 
-        ${isActive ? "scale-110" : "hover:scale-105"} transition-transform`}
-      style={{ left: `${x}%`, top: `${y}%` }}
-      onClick={onClick}
-    >
-      <div
-        className={`p-2 rounded-full ${
-          isActive ? "bg-blue-500 text-white" : "bg-white shadow-md"
-        }`}
-      >
-        <Icon className="h-6 w-6" />
-      </div>
-      {label && (
-        <div className="mt-1 text-xs font-medium text-center whitespace-nowrap">
-          {label}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const TrumanIndicator = ({ x, y }) => {
-  return (
-    <div
-      className="absolute transform -translate-x-1/2 -translate-y-1/2"
-      style={{ left: `${x}%`, top: `${y}%` }}
-    >
-      <div className="relative">
-        <div className="p-2 rounded-full bg-trans text-white animate-pulse">
-          <img src="/truman.png" className="h-6 w-6" />
-        </div>
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping" />
-      </div>
-      <div className="mt-1 text-xs font-bold text-center text-red-500">
-        TRUMAN
-      </div>
-    </div>
-  );
-};
-function calculateSuspicionIncrease(responseText) {
-  let suspicionIncrease = 0;
-  const lowerText = responseText.toLowerCase();
-
-  if (
-    lowerText.includes("suspicious") ||
-    lowerText.includes("watched") ||
-    lowerText.includes("strange") ||
-    lowerText.includes("weird")
-  ) {
-    suspicionIncrease += 20;
-  } else if (lowerText.includes("unusual") || lowerText.includes("odd")) {
-    suspicionIncrease += 10;
-  }
-
-  return suspicionIncrease;
-}
-
-// Add this new component near other UI components at the top
-const StatusBadge = ({ children, className = "" }) => (
-  <div className={`px-3 py-1 rounded-full text-sm font-medium ${className}`}>
-    {children}
-  </div>
-);
+import { ToastContainer, toast } from 'react-toastify';
+import "react-toastify/dist/ReactToastify.css";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Input,
+  Briefcase,
+  Coffee,
+  Store,
+  Tree,
+  MapLocation,
+  TrumanIndicator,
+  calculateSuspicionIncrease,
+  StatusBadge,
+  WorldState,
+  ChatMessage,
+  parseConversationText,
+} from "./components";
+import ResultsModal from "./components/ResultsModal";
 
 // Add these types
 interface WorldState {
@@ -259,16 +101,182 @@ export default function TrumanWorldApp() {
   const [recentEvents, setRecentEvents] = useState<string[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
-  const handleSendMessageToWorldAi = async (message) => {
-    // Add the user's message to the chat
+  const handleSendMessageToWorldAi = async (message: string) => {
+    // Check if message is a command
+    if (message.startsWith("/")) {
+      const [command, ...args] = message.slice(1).split(" ");
+
+      switch (command.toLowerCase()) {
+        case "bet": {
+          if (args.length < 2) {
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                from: "System",
+                text: "Usage: /bet <amount> <prediction> - Example: /bet 0.001 'Truman will discover a camera'",
+              },
+            ]);
+            return;
+          }
+
+          const amount = parseFloat(args[0]);
+          const prediction = args.slice(1).join(" ");
+
+          if (isNaN(amount) || amount <= 0) {
+            setChatMessages((prev) => [
+              ...prev,
+              {
+                from: "System",
+                text: "Please specify a valid betting amount in ETH",
+              },
+            ]);
+            return;
+          }
+
+          try {
+            const response = await fetch("/api/world-ai-bet", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                amount,
+                prediction,
+                worldState,
+                recentEvents,
+                chatHistory: chatMessages,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error("Failed to place bet");
+            }
+
+            const data = await response.json();
+
+            // Add bet to active bets
+            setBets((prev) => [
+              ...prev,
+              {
+                id: data.betId,
+                question: prediction,
+                options: ["Yes", "No"],
+                endTime: "1 hour",
+                pool: amount,
+                odds: { Yes: 2.0, No: 2.0 },
+              },
+            ]);
+
+            // Add confirmation message
+            setChatMessages((prev) => [
+              ...prev,
+              { from: "User", text: message },
+              {
+                from: "System",
+                text: `Bet placed: ${amount} ETH on "${prediction}"`,
+              },
+            ]);
+
+            toast(`New bet created: ${amount} ETH on "${prediction}"`, {
+              type: "success",
+            });
+          } catch (error) {
+            console.error("Error placing bet:", error);
+            setChatMessages((prev) => [
+              ...prev,
+              { from: "User", text: message },
+              {
+                from: "System",
+                text: "Failed to place bet. Please try again.",
+              },
+            ]);
+          }
+          break;
+        }
+
+        case "help": {
+          setChatMessages((prev) => [
+            ...prev,
+            { from: "User", text: message },
+            {
+              from: "System",
+              text: `Available commands:
+/bet <amount> <prediction> - Place a new bet
+/help - Show this help message
+/status - Show current world state
+/events - Show recent events`,
+            },
+          ]);
+          break;
+        }
+
+        case "status": {
+          const statusMessage = `Current World State:
+• Weather: ${worldState.weather}
+• Time: ${worldState.timeOfDay}
+• Suspicion Level: ${worldState.suspicionMeter}%
+• Viewer Count: ${worldState.viewerCount}
+${
+  worldState.currentEvent ? `• Current Event: ${worldState.currentEvent}` : ""
+}`;
+
+          setChatMessages((prev) => [
+            ...prev,
+            { from: "User", text: message },
+            { from: "System", text: statusMessage },
+          ]);
+          break;
+        }
+
+        case "events": {
+          if (recentEvents.length === 0) {
+            setChatMessages((prev) => [
+              ...prev,
+              { from: "User", text: message },
+              { from: "System", text: "No recent events to display." },
+            ]);
+            return;
+          }
+
+          const eventsMessage = `Recent Events:
+${recentEvents
+  .slice(-5)
+  .map((event, i) => `${i + 1}. ${event}`)
+  .join("\n")}`;
+
+          setChatMessages((prev) => [
+            ...prev,
+            { from: "User", text: message },
+            { from: "System", text: eventsMessage },
+          ]);
+          break;
+        }
+
+        default: {
+          setChatMessages((prev) => [
+            ...prev,
+            { from: "User", text: message },
+            {
+              from: "System",
+              text: "Unknown command. Type /help for available commands.",
+            },
+          ]);
+        }
+      }
+      return;
+    }
+
+    // Handle regular chat messages
     setChatMessages((prev) => [...prev, { from: "User", text: message }]);
 
-    // Fetch the World AI's response
     try {
       const response = await fetch("/api/world-ai-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, chatHistory: chatMessages }),
+        body: JSON.stringify({
+          message,
+          chatHistory: chatMessages,
+          worldState,
+          recentEvents,
+        }),
       });
 
       if (!response.ok) {
@@ -277,13 +285,36 @@ export default function TrumanWorldApp() {
 
       const data = await response.json();
 
-      // Add the World AI's response to the chat
+      // Add the World AI's response
       setChatMessages((prev) => [
         ...prev,
-        { from: "World AI", text: data.response },
+        {
+          from: "World AI",
+          text: data.response,
+        },
       ]);
+
+      // Check if the response should trigger any world state changes
+      if (data.worldStateChanges) {
+        setWorldState((prev) => ({
+          ...prev,
+          ...data.worldStateChanges,
+        }));
+      }
+
+      // Check if the response should add any events
+      if (data.newEvent) {
+        setRecentEvents((prev) => [...prev, data.newEvent]);
+      }
     } catch (error) {
       console.error("Error communicating with World AI:", error);
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          from: "System",
+          text: "Sorry, I encountered an error. Please try again.",
+        },
+      ]);
     }
   };
 
@@ -358,6 +389,7 @@ export default function TrumanWorldApp() {
     },
   ]);
 
+  const [isPlacingBet, setIsPlacingBet] = useState(false);
   // Active bets
   const [bets, setBets] = useState([
     {
@@ -365,16 +397,16 @@ export default function TrumanWorldApp() {
       question: "Will Truman notice today's staged event?",
       options: ["Yes", "No"],
       endTime: "1 hour",
-      pool: "1000 USDC",
-      odds: { Yes: "3.5", No: "1.5" },
+      pool: 0.002, // Total pool size in ETH
+      odds: { Yes: 2.0, No: 2.0 }, // Initial odds
     },
     {
       id: 2,
       question: "Will Truman try to leave Seahaven today?",
       options: ["Yes", "No"],
       endTime: "24 hours",
-      pool: "5000 USDC",
-      odds: { Yes: "10.0", No: "1.1" },
+      pool: 0.002, // Total pool size in ETH
+      odds: { Yes: 2.0, No: 2.0 }, // Initial odds
     },
   ]);
 
@@ -558,12 +590,6 @@ export default function TrumanWorldApp() {
     }, 50);
   };
 
-  // Handle betting
-  const placeBet = (betId, choice) => {
-    // To be implemented with web3
-    console.log(`Placing bet on ${betId}: ${choice}`);
-  };
-
   // Handle Truman's response to actor instructions
   const getTrumanResponse = async (actorName, action) => {
     if (!action) return null;
@@ -688,12 +714,116 @@ export default function TrumanWorldApp() {
     return () => clearInterval(cleanupInterval);
   }, [cleanup]);
 
+  // Function to resolve bets
+  const [betResults, setBetResults] = useState<
+    Array<{ id: string; success: boolean; message: string }>
+  >([]);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+
+  const resolveBets = async () => {
+    try {
+      const response = await fetch("/api/resolve-bets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bets, // Send current bets
+          eventHistory: recentEvents, // Send recent events
+          worldState, // Send current world state if needed
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to resolve bets");
+      }
+
+      const data = await response.json();
+
+      // Set the results and show the modal
+      setBetResults(data.results);
+      setShowResultsModal(true);
+
+      // Remove resolved bets from the state
+      setBets((prevBets) =>
+        prevBets.filter(
+          (bet) => !data.results.some((result) => result.id === bet.id)
+        )
+      );
+    } catch (error) {
+      console.error("Error resolving bets:", error);
+    }
+  };
+  const placeBet = (betId, choice) => {
+    if (isPlacingBet) return; // Prevent multiple simultaneous bets
+
+    setIsPlacingBet(true);
+    console.log(`Placing bet on ${betId}: ${choice}`);
+
+    // Simulate a loading delay
+    setTimeout(() => {
+      setBets((prevBets) =>
+        prevBets.map((bet) => {
+          if (bet.id === betId) {
+            const betAmount = 0.001; // Amount bet in ETH
+            const newPool = bet.pool + betAmount;
+
+            // Calculate new odds
+            const newOdds = { ...bet.odds };
+            const otherChoice = bet.options.find((opt) => opt !== choice);
+
+            // Calculate the new odds based on the new pool distribution
+            newOdds[choice] = (
+              newPool /
+              (bet.pool / bet.odds[choice] + betAmount)
+            ).toFixed(2);
+            newOdds[otherChoice] = (
+              newPool /
+              (bet.pool / bet.odds[otherChoice])
+            ).toFixed(2);
+
+            return { ...bet, pool: newPool, odds: newOdds };
+          }
+          return bet;
+        })
+      );
+
+      toast(`Bet placed: 0.001 ETH on ${choice}`, { type: "info" });
+      setIsPlacingBet(false);
+    }, 1000); // 1 second delay
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      resolveBets();
+    }, 20000); // Every 20 seconds
+
+    return () => clearInterval(interval);
+  }, [bets, recentEvents, worldState]);
+
   return (
     <div className="h-screen bg-gray-900 text-white">
       {/* Add DynamicWidget */}
       <div className="absolute top-4 right-4 z-50">
         <DynamicWidget />
       </div>
+      {showResultsModal && (
+        <ResultsModal
+          results={betResults}
+          onClose={() => setShowResultsModal(false)}
+        />
+      )}
+      {/* ToastContainer for notifications */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+
       {/* Main grid layout */}
       <div className="grid grid-cols-[1fr_400px] h-full">
         {/* Left Column - Main Content */}
@@ -731,7 +861,7 @@ export default function TrumanWorldApp() {
           </div>
 
           {/* Main content grid */}
-          <div className="grid grid-rows-[1fr_500px] gap-4 flex-1 overflow-hidden">
+          <div className="grid grid-rows-[1fr_400px] gap-4 flex-1 overflow-hidden">
             {/* Top section with map and status */}
             <div className="grid grid-cols-2 gap-4">
               {/* Map */}
