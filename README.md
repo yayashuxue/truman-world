@@ -39,7 +39,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Contract
 
-Scroll: https://sepolia.scrollscan.com/address/0xe7c3c92a72f187Ac0e4Ec43c88A1472BA620ED16#code 
-Mantle: https://explorer.sepolia.mantle.xyz/address/0x423CB68335A61e3b6135C4Ec237c0bd286De2147
-Polygon: https://polygonscan.com/address/0x576e399b37b8833031a4c9c128aa95d4d71981fd
-Base: https://base-sepolia.blockscout.com/address/0x046Bec49F1c6C7f3d2D4Cd7DBefB28324f701c05
+Mantle Sepolia: https://explorer.sepolia.mantle.xyz/address/0x423CB68335A61e3b6135C4Ec237c0bd286De2147
